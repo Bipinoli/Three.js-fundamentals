@@ -1,7 +1,7 @@
-const path = require("path");
+const path = require('path');
 
 module.exports = {
-  entry: "./src/app.js",
+  entry: './src/app.js',
   module: {
     rules: [
       {
@@ -12,13 +12,13 @@ module.exports = {
     ],
   },
   output: {
-    path: path.resolve(__dirname, "public"),
-    filename: "bundle.js",
+    path: path.resolve(__dirname, 'public'),
+    filename: 'bundle.js',
   },
   devServer: {
     contentBase: path.join(__dirname, 'public'),
     compress: true,
-    port: 8000
+    port: 8000,
   },
-  mode: process.env.NODE_ENV === "production" ? "production" : "development",
+  mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
 };
