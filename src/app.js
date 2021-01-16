@@ -1,4 +1,4 @@
-import SimpleScene from './progress/simpleScene';
+import ResponsiveScene from './progress/responsiveScene';
 
-const simple = new SimpleScene();
+const simple = new ResponsiveScene();
 simple.init();
