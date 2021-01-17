@@ -8,6 +8,7 @@ export default class {
     this.renderer = new THREE.WebGLRenderer({ canvas });
     this.scene = new THREE.Scene();
     this.gui = new dat.GUI();
+    this.splineCurve = undefined;
   }
 
   start() {
@@ -19,7 +20,7 @@ export default class {
   }
 
   configureRenderer() {
-    this.renderer.setClearColor(0xaaaaaa);
+    this.renderer.setClearColor(0xB8B8D1);
     this.renderer.shadowMap.enabled = true;
   }
 
@@ -27,12 +28,14 @@ export default class {
     this.buildGround();
     this.buildTank();
     this.buildPath();
+    console.log(this.scene);
   }
 
   light() {
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(-10, 20, -10);
     light.lookAt(0, 0, 0);
+    light.name = 'light1';
     this.scene.add(light);
 
     const helper = new AxesGridHelper(light);
@@ -53,6 +56,7 @@ export default class {
 
     const light2 = new THREE.DirectionalLight(0xffffff, 0.3);
     light2.position.set(10, 20, 10);
+    light2.name = 'light2';
     this.scene.add(light2);
     const helper2 = new AxesGridHelper(light2);
     this.gui.add(helper2, 'visible').name('light2 helper');
@@ -71,7 +75,9 @@ export default class {
     requestAnimationFrame(this.animate);
   }
 
-  animate() {
+  animate(millis) {
+    const secs = millis * 0.001;
+
     const canvas = this.renderer.domElement;
     if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
       this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
@@ -79,20 +85,55 @@ export default class {
       this.renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
     }
     this.renderer.render(this.scene, this.camera);
+
+    {
+      // move tank
+      const travelTime = 15;
+      const travelProgress = this.normalizeTime(secs, travelTime);
+      const lookAtPointProgress = this.normalizeTime(secs + 0.1, travelTime);
+      const tank = this.scene.getObjectByName('tank');
+      const tankPosition = this.splineCurve.getPointAt(travelProgress);
+      const lookAtPosition = this.splineCurve.getPointAt(lookAtPointProgress);
+      tank.position.set(tankPosition.x, 0, tankPosition.y);
+      tank.lookAt(lookAtPosition.x, 0, lookAtPosition.y);
+    }
+    // rotate wheels
+    this.wheels.forEach((obj) => {
+      const node = obj;
+      node.rotation.x = secs * 10;
+    });
+
     requestAnimationFrame(this.animate);
+  }
+
+  normalizeTime(currentTime, cyclePeriod) {
+    /*
+      return value between 0 and 1
+      0 = start of new cycle
+      1 = end of the cycle
+      value in between = % complete of the cycle
+      travelTime = total period of the cycle
+    */
+    this.previousCycleEndTime = this.previousCycleEnd ?? 0;
+    while (currentTime >= this.previousCycleEndTime + cyclePeriod) {
+      this.previousCycleEndTime += cyclePeriod;
+    }
+    return (currentTime - this.previousCycleEndTime) / cyclePeriod;
   }
 
   buildGround() {
     const groundGeometry = new THREE.PlaneBufferGeometry(50, 50);
-    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x449922 });
+    const groundMaterial = new THREE.MeshPhongMaterial({ color: 0xFFC145 });
     const groundMesh = new THREE.Mesh(groundGeometry, groundMaterial);
     groundMesh.rotation.x = Math.PI * -0.5;
     groundMesh.receiveShadow = true;
+    groundMesh.name = 'ground';
     this.scene.add(groundMesh);
   }
 
   buildTank() {
     const tank = new THREE.Object3D();
+    tank.name = 'tank';
     this.scene.add(tank);
 
     // chassis
@@ -100,10 +141,11 @@ export default class {
     const chassisHeight = 1;
     const chassisLength = 8;
     const chassisGeometry = new THREE.BoxBufferGeometry(chassisWidth, chassisHeight, chassisLength);
-    const chassisMaterial = new THREE.MeshPhongMaterial({ color: 0x6688aa });
+    const chassisMaterial = new THREE.MeshPhongMaterial({ color: 0x5B5F97 });
     const chassisMesh = new THREE.Mesh(chassisGeometry, chassisMaterial);
     chassisMesh.position.y = 1.4;
     chassisMesh.castShadow = true;
+    chassisMesh.name = 'chassis';
     tank.add(chassisMesh);
 
     const helper = new AxesGridHelper(chassisMesh);
@@ -113,9 +155,9 @@ export default class {
       // wheels
       const radius = 1;
       const thickness = 0.5;
-      const segments = 8;
+      const segments = 5;
       const wheelGeometry = new THREE.CylinderBufferGeometry(radius, radius, thickness, segments);
-      const wheelMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
+      const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0xFF6B6C });
       const wheelMesh = new THREE.Mesh(wheelGeometry, wheelMaterial);
       const wheelPositions = [
         [-chassisWidth / 2 - thickness / 2, -chassisHeight / 2, chassisLength / 3],
@@ -125,11 +167,12 @@ export default class {
         [chassisWidth / 2 + thickness / 2, -chassisHeight / 2, 0],
         [chassisWidth / 2 + thickness / 2, -chassisHeight / 2, -chassisLength / 3],
       ];
-      wheelPositions.map((position) => {
+      this.wheels = wheelPositions.map((position) => {
         const mesh = new THREE.Mesh(wheelGeometry, wheelMaterial);
         mesh.position.set(...position);
         mesh.rotation.z = Math.PI * 0.5;
         mesh.castShadow = true;
+        mesh.name = 'wheel';
         chassisMesh.add(mesh);
         return mesh;
       });
@@ -149,6 +192,7 @@ export default class {
         phiStart, phiEnd, thetaStart, thetaEnd);
       const domeMesh = new THREE.Mesh(domeGeometry, chassisMaterial);
       domeMesh.castShadow = true;
+      domeMesh.name = 'dome';
       chassisMesh.add(domeMesh);
     }
     {
@@ -163,6 +207,7 @@ export default class {
       turretPivot.scale.set(scale, scale, scale);
       turretPivot.position.y = 0.5;
       turretPivot.position.z = (length * scale) / 2;
+      turretPivot.name = 'turret';
       turretPivot.add(turretMesh);
       chassisMesh.add(turretPivot);
     }
@@ -184,14 +229,15 @@ export default class {
       new THREE.Vector2(-10, 8),
       new THREE.Vector2(-18, -7),
       new THREE.Vector2(-20, 0),
-
     ]);
+    this.splineCurve = curve;
     const points = curve.getPoints(200);
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+    const material = new THREE.LineBasicMaterial({ color: 0xFFFFFB });
     const curveObject = new THREE.Line(geometry, material);
     this.scene.add(curveObject);
     curveObject.rotation.x = Math.PI * 0.5;
+    curveObject.position.y = 0.5;
   }
 
   makeAxesGrid(node, units, label) {
