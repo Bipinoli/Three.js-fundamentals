@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import * as dat from 'dat.gui';
 import AxesGridHelper from './components/axesGridHelper';
 
-export default class {
+export default class SceneGraph {
   constructor() {
     const canvas = document.getElementById('canvas');
     this.renderer = new THREE.WebGLRenderer({ canvas });
@@ -12,6 +12,7 @@ export default class {
     this.targetMaterial = undefined;
     this.turret = undefined;
     this.target = undefined;
+    this.cameras = [];
   }
 
   start() {
@@ -32,7 +33,7 @@ export default class {
     this.buildTank();
     this.buildTarget();
     this.buildPath();
-    console.log(this.scene);
+    this.makeAxesGrid(this.scene, 100, 'world');
   }
 
   light() {
@@ -67,11 +68,14 @@ export default class {
   }
 
   camera() {
-    const canvas = this.renderer.domElement;
-    this.camera = new THREE.PerspectiveCamera(90,
-      canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
-    this.camera.position.set(4, 10, 10).multiplyScalar(1);
-    this.camera.lookAt(0, 0, 0);
+    const camera1 = SceneGraph.makeCamera();
+    const camera2 = SceneGraph.makeCamera();
+    camera1.position.set(1, 1, 1).multiplyScalar(10);
+    camera2.position.set(-1, 1, 1).multiplyScalar(10);
+    camera1.lookAt(0, 0, 0);
+    camera2.lookAt(0, 0, 0);
+    this.cameras.push({ camera: camera1, name: 'camera 1' });
+    this.cameras.push({ camera: camera2, name: 'camera 2' });
   }
 
   action() {
@@ -82,13 +86,16 @@ export default class {
   animate(millis) {
     const secs = millis * 0.001;
 
+    const { camera, name } = this.cameras[Math.floor(secs % this.cameras.length)];
+    document.getElementById('info').innerText = `as seen from ${name}`;
+
     const canvas = this.renderer.domElement;
     if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
-      this.camera.aspect = canvas.clientWidth / canvas.clientHeight;
-      this.camera.updateProjectionMatrix();
+      camera.aspect = canvas.clientWidth / canvas.clientHeight;
+      camera.updateProjectionMatrix();
       this.renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
     }
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.render(this.scene, camera);
 
     {
       // move tank
@@ -211,7 +218,8 @@ export default class {
       const thetaEnd = Math.PI * 0.5;
       const domeGeometry = new THREE.SphereBufferGeometry(radius, widthSubDivs, heightSubDivs,
         phiStart, phiEnd, thetaStart, thetaEnd);
-      const domeMesh = new THREE.Mesh(domeGeometry, chassisMaterial);
+      const domeMaterial = new THREE.MeshPhongMaterial({ color: 0xFF6B6C });
+      const domeMesh = new THREE.Mesh(domeGeometry, domeMaterial);
       domeMesh.castShadow = true;
       domeMesh.name = 'dome';
       chassisMesh.add(domeMesh);
@@ -222,7 +230,8 @@ export default class {
       const height = 0.1;
       const length = chassisLength * 0.5 * 0.2;
       const turretGeometry = new THREE.BoxBufferGeometry(width, height, length);
-      const turretMesh = new THREE.Mesh(turretGeometry, chassisMaterial);
+      const turretMaterial = new THREE.MeshPhongMaterial({ color: 0xFF6B6C });
+      const turretMesh = new THREE.Mesh(turretGeometry, turretMaterial);
       const turretPivot = new THREE.Object3D();
       const scale = 5;
       turretPivot.scale.set(scale, scale, scale);
@@ -233,6 +242,14 @@ export default class {
       turretPivot.add(turretMesh);
       chassisMesh.add(turretPivot);
       this.turret = turretPivot;
+
+      const camera = SceneGraph.makeCamera();
+      camera.position.y = 0.5;
+      camera.lookAt(0, 0, 1);
+      turretPivot.add(camera);
+
+      this.makeAxesGrid(camera, 10, 'turret camera');
+      this.cameras.push({ camera, name: 'turret camera' });
 
       this.makeAxesGrid(turretPivot, 10, 'turretPivot');
     }
@@ -279,5 +296,9 @@ export default class {
   makeAxesGrid(node, units, label) {
     const helper = new AxesGridHelper(node, units);
     this.gui.add(helper, 'visible').name(label);
+  }
+
+  static makeCamera() {
+    return new THREE.PerspectiveCamera(90, 1.5, 0.1, 1000);
   }
 }
