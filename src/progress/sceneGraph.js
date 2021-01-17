@@ -26,6 +26,7 @@ export default class {
   buildScene() {
     this.buildGround();
     this.buildTank();
+    this.buildPath();
   }
 
   light() {
@@ -165,6 +166,32 @@ export default class {
       turretPivot.add(turretMesh);
       chassisMesh.add(turretPivot);
     }
+  }
+
+  buildPath() {
+    const curve = new THREE.SplineCurve([
+      new THREE.Vector2(-20, 0),
+      new THREE.Vector2(-15, 10),
+      new THREE.Vector2(-10, -10),
+      new THREE.Vector2(0, 8),
+      new THREE.Vector2(5, -15),
+      new THREE.Vector2(8, 5),
+      new THREE.Vector2(13, -5),
+      new THREE.Vector2(15, -10),
+      new THREE.Vector2(8, -7),
+      new THREE.Vector2(0, 0),
+      new THREE.Vector2(-10, 8),
+      new THREE.Vector2(-10, 8),
+      new THREE.Vector2(-18, -7),
+      new THREE.Vector2(-20, 0),
+
+    ]);
+    const points = curve.getPoints(200);
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
+    const curveObject = new THREE.Line(geometry, material);
+    this.scene.add(curveObject);
+    curveObject.rotation.x = Math.PI * 0.5;
   }
 
   makeAxesGrid(node, units, label) {
