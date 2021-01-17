@@ -9,6 +9,9 @@ export default class {
     this.scene = new THREE.Scene();
     this.gui = new dat.GUI();
     this.splineCurve = undefined;
+    this.targetMaterial = undefined;
+    this.turret = undefined;
+    this.target = undefined;
   }
 
   start() {
@@ -27,6 +30,7 @@ export default class {
   buildScene() {
     this.buildGround();
     this.buildTank();
+    this.buildTarget();
     this.buildPath();
     console.log(this.scene);
   }
@@ -64,7 +68,7 @@ export default class {
 
   camera() {
     const canvas = this.renderer.domElement;
-    this.camera = new THREE.PerspectiveCamera(75,
+    this.camera = new THREE.PerspectiveCamera(90,
       canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
     this.camera.position.set(4, 10, 10).multiplyScalar(1);
     this.camera.lookAt(0, 0, 0);
@@ -102,6 +106,23 @@ export default class {
       const node = obj;
       node.rotation.x = secs * 10;
     });
+    {
+      // slow shimmer effect on target
+      const r = this.normalizeTime(secs, 1);
+      const g = this.normalizeTime(secs, 1.2);
+      const b = this.normalizeTime(secs, 1.5);
+      this.targetMaterial.emissive.setRGB(r * 0.4, 1 - g * 0.8, 1 - b * 0.6);
+
+      // move target
+      this.target.position.x = Math.sin(secs) * 8;
+      this.target.position.y = 5 + Math.cos(secs * 10);
+      this.target.position.z = Math.sin(secs * 2) + 6;
+    }
+    {
+      // point turret to the target
+      const targetPosition = this.target.getWorldPosition();
+      this.turret.lookAt(targetPosition);
+    }
 
     requestAnimationFrame(this.animate);
   }
@@ -199,18 +220,33 @@ export default class {
       // turret
       const width = 0.1;
       const height = 0.1;
-      const length = chassisLength * 0.75 * 0.2;
+      const length = chassisLength * 0.5 * 0.2;
       const turretGeometry = new THREE.BoxBufferGeometry(width, height, length);
       const turretMesh = new THREE.Mesh(turretGeometry, chassisMaterial);
       const turretPivot = new THREE.Object3D();
       const scale = 5;
       turretPivot.scale.set(scale, scale, scale);
-      turretPivot.position.y = 0.5;
-      turretPivot.position.z = (length * scale) / 2;
+      turretPivot.position.y = 1;
+      turretPivot.position.x = 0;
+      turretMesh.position.z = (length) / 2;
       turretPivot.name = 'turret';
       turretPivot.add(turretMesh);
       chassisMesh.add(turretPivot);
+      this.turret = turretPivot;
+
+      this.makeAxesGrid(turretPivot, 10, 'turretPivot');
     }
+  }
+
+  buildTarget() {
+    const geometry = new THREE.SphereBufferGeometry(1, 9, 10, 0, 2 * Math.PI, 0, Math.PI);
+    const material = new THREE.MeshPhongMaterial({ color: 0x00ffaa });
+    const mesh = new THREE.Mesh(geometry, material);
+    this.scene.add(mesh);
+    mesh.position.y = 7;
+    material.emissive.setRGB(0.2, 0.5, 0.6);
+    this.targetMaterial = material;
+    this.target = mesh;
   }
 
   buildPath() {
