@@ -1,4 +1,4 @@
-import ResponsiveScene from './progress/responsiveScene';
+import SceneGraph from './progress/sceneGraph';
 
-const simple = new ResponsiveScene();
-simple.init();
+const simple = new SceneGraph();
+simple.start();
