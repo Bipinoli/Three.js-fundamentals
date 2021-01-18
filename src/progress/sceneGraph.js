@@ -136,10 +136,9 @@ export default class SceneGraph {
 
   normalizeTime(currentTime, cyclePeriod) {
     /*
-      return value between 0 and 1
+      return value between 0 and 1 signifying % complete of cycle
       0 = start of new cycle
       1 = end of the cycle
-      value in between = % complete of the cycle
       travelTime = total period of the cycle
     */
     this.previousCycleEndTime = this.previousCycleEnd ?? 0;
